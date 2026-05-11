@@ -562,6 +562,7 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 				config.Opts.EmbeddingAPIURL(),
 				config.Opts.EmbeddingAPIKey(),
 				config.Opts.EmbeddingModel(),
+				config.Opts.EmbeddingDimensions(),
 			)
 			ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 			defer cancel()

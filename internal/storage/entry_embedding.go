@@ -6,6 +6,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -69,4 +70,70 @@ func (s *Storage) GetEntryEmbedding(userID, entryID int64) (model.Vector, error)
 		return nil, fmt.Errorf("store: unable to get embedding for entry #%d: %w", entryID, err)
 	}
 	return v, nil
+}
+
+// ConfigureEmbeddingColumn ensures the embedding column has the correct
+// dimension constraint and that the HNSW index exists. It is idempotent —
+// a no-op when the column already matches the requested dimensions.
+func (s *Storage) ConfigureEmbeddingColumn(dimensions int) error {
+	// pgvector stores dimension + 4 in atttypmod; -1 means untyped vector.
+	var typmod int
+	err := s.db.QueryRow(`
+		SELECT atttypmod
+		FROM pg_attribute
+		WHERE attrelid = 'entries'::regclass
+		  AND attname = 'embedding'
+	`).Scan(&typmod)
+	if err != nil {
+		return fmt.Errorf("store: unable to read embedding column type: %w", err)
+	}
+
+	currentDim := 0
+	if typmod != -1 {
+		currentDim = typmod - 4
+	}
+
+	if currentDim == dimensions {
+		// Ensure the index exists even if dimensions match (e.g. after migration).
+		_, err = s.db.Exec(`
+			CREATE INDEX IF NOT EXISTS entries_embedding_idx
+				ON entries USING hnsw (embedding vector_cosine_ops)
+		`)
+		if err != nil {
+			return fmt.Errorf("store: unable to create embedding index: %w", err)
+		}
+		return nil
+	}
+
+	slog.Info("Reconfiguring embedding column",
+		slog.Int("old_dimensions", currentDim),
+		slog.Int("new_dimensions", dimensions),
+	)
+
+	// Drop the index, null out any existing embeddings, re-type, rebuild index.
+	_, err = s.db.Exec(`DROP INDEX IF EXISTS entries_embedding_idx`)
+	if err != nil {
+		return fmt.Errorf("store: unable to drop embedding index: %w", err)
+	}
+
+	_, err = s.db.Exec(`UPDATE entries SET embedding = NULL WHERE embedding IS NOT NULL`)
+	if err != nil {
+		return fmt.Errorf("store: unable to null embeddings: %w", err)
+	}
+
+	alterSQL := fmt.Sprintf(`ALTER TABLE entries ALTER COLUMN embedding TYPE vector(%d)`, dimensions)
+	_, err = s.db.Exec(alterSQL)
+	if err != nil {
+		return fmt.Errorf("store: unable to alter embedding column to vector(%d): %w", dimensions, err)
+	}
+
+	_, err = s.db.Exec(`
+		CREATE INDEX entries_embedding_idx
+			ON entries USING hnsw (embedding vector_cosine_ops)
+	`)
+	if err != nil {
+		return fmt.Errorf("store: unable to create embedding index: %w", err)
+	}
+
+	return nil
 }

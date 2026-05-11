@@ -2070,6 +2070,10 @@ func TestEmbeddingDefaults(t *testing.T) {
 	if configParser.options.EmbeddingMaxTextBytes() != 10000 {
 		t.Fatalf("Expected EMBEDDING_MAX_TEXT_BYTES to be 10000, got %d", configParser.options.EmbeddingMaxTextBytes())
 	}
+
+	if configParser.options.EmbeddingDimensions() != 0 {
+		t.Fatalf("Expected EMBEDDING_DIMENSIONS to be 0 by default, got %d", configParser.options.EmbeddingDimensions())
+	}
 }
 
 func TestEmbeddingOptionParsing(t *testing.T) {
@@ -2145,5 +2149,61 @@ func TestEmbeddingMaxTextBytesValidation(t *testing.T) {
 	}
 	if configParser.options.EmbeddingMaxTextBytes() != 0 {
 		t.Fatalf("Expected EMBEDDING_MAX_TEXT_BYTES to be 0, got %d", configParser.options.EmbeddingMaxTextBytes())
+	}
+}
+
+func TestEmbeddingDimensionsParsing(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=1536"}); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if configParser.options.EmbeddingDimensions() != 1536 {
+		t.Fatalf("Expected EMBEDDING_DIMENSIONS 1536, got %d", configParser.options.EmbeddingDimensions())
+	}
+}
+
+func TestEmbeddingDimensionsValidation(t *testing.T) {
+	configParser := NewConfigParser()
+
+	// 0 is valid (auto-detect)
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=0"}); err != nil {
+		t.Fatalf("Unexpected error for EMBEDDING_DIMENSIONS=0: %v", err)
+	}
+
+	// Negative values are rejected
+	configParser = NewConfigParser()
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=-1"}); err == nil {
+		t.Fatal("Expected error for EMBEDDING_DIMENSIONS=-1")
+	}
+
+	// Above max is rejected
+	configParser = NewConfigParser()
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=16001"}); err == nil {
+		t.Fatal("Expected error for EMBEDDING_DIMENSIONS=16001")
+	}
+
+	// Boundary values are accepted
+	configParser = NewConfigParser()
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=1"}); err != nil {
+		t.Fatalf("Unexpected error for EMBEDDING_DIMENSIONS=1: %v", err)
+	}
+
+	configParser = NewConfigParser()
+	if err := configParser.parseLines([]string{"EMBEDDING_DIMENSIONS=16000"}); err != nil {
+		t.Fatalf("Unexpected error for EMBEDDING_DIMENSIONS=16000: %v", err)
+	}
+}
+
+func TestEmbeddingEnabledRequiresAPIURL(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{"EMBEDDING_ENABLED=1"}); err != nil {
+		t.Fatalf("Unexpected parse error: %v", err)
+	}
+
+	if err := configParser.options.Validate(); err == nil {
+		t.Fatal("Expected validation error when EMBEDDING_ENABLED=1 without EMBEDDING_API_URL")
 	}
 }

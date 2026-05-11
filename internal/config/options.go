@@ -244,6 +244,17 @@ func NewConfigOptions() *configOptions {
 					return validateGreaterOrEqualThan(rawValue, 1)
 				},
 			},
+			"EMBEDDING_DIMENSIONS": {
+				parsedIntValue: 0,
+				rawValue:       "0",
+				valueType:      intType,
+				validator: func(rawValue string) error {
+					if rawValue == "0" {
+						return nil // 0 = auto-detect from first API response
+					}
+					return validateRange(rawValue, 1, 16000)
+				},
+			},
 			"EMBEDDING_ENABLED": {
 				parsedBoolValue: false,
 				rawValue:        "0",
@@ -756,6 +767,10 @@ func (c *configOptions) EmbeddingAPIURL() string {
 
 func (c *configOptions) EmbeddingBatchSize() int {
 	return c.options["EMBEDDING_BATCH_SIZE"].parsedIntValue
+}
+
+func (c *configOptions) EmbeddingDimensions() int {
+	return c.options["EMBEDDING_DIMENSIONS"].parsedIntValue
 }
 
 func (c *configOptions) EmbeddingEnabled() bool {

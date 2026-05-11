@@ -56,7 +56,7 @@ func TestEmbedSingle(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "", "test-model")
+	client := NewClient(server.URL, "", "test-model", 0)
 	vec, err := client.EmbedSingle(context.Background(), "test query")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -91,7 +91,7 @@ func TestEmbedBatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "", "test-model")
+	client := NewClient(server.URL, "", "test-model", 0)
 	vecs, err := client.Embed(context.Background(), []string{"first", "second"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -131,7 +131,7 @@ func TestEmbedWithAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key-123", "model")
+	client := NewClient(server.URL, "test-key-123", "model", 0)
 	_, err := client.EmbedSingle(context.Background(), "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -145,7 +145,7 @@ func TestEmbedAPIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "", "model")
+	client := NewClient(server.URL, "", "model", 0)
 	_, err := client.EmbedSingle(context.Background(), "test")
 	if err == nil {
 		t.Fatal("expected error for 500 response")
@@ -168,9 +168,77 @@ func TestEmbedCountMismatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "", "model")
+	client := NewClient(server.URL, "", "model", 0)
 	_, err := client.Embed(context.Background(), []string{"one", "two"})
 	if err == nil {
 		t.Fatal("expected error for count mismatch")
+	}
+}
+
+func TestEmbedWithDimensionsPresent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req embeddingRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		if req.Dimensions != 256 {
+			t.Errorf("expected dimensions=256 in request, got %d", req.Dimensions)
+		}
+
+		resp := embeddingResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+				Index     int       `json:"index"`
+			}{
+				{Embedding: make([]float32, 256), Index: 0},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "", "model", 256)
+	vec, err := client.EmbedSingle(context.Background(), "test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(vec) != 256 {
+		t.Fatalf("expected 256 dimensions, got %d", len(vec))
+	}
+}
+
+func TestEmbedWithDimensionsOmitted(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var raw map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		if _, exists := raw["dimensions"]; exists {
+			t.Error("expected dimensions field to be omitted from request JSON when 0")
+		}
+
+		resp := embeddingResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+				Index     int       `json:"index"`
+			}{
+				{Embedding: []float32{0.1}, Index: 0},
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "", "model", 0)
+	_, err := client.EmbedSingle(context.Background(), "test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

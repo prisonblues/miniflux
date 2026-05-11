@@ -45,12 +45,14 @@ func startDaemon(store *storage.Storage) {
 			config.Opts.EmbeddingAPIURL(),
 			config.Opts.EmbeddingAPIKey(),
 			config.Opts.EmbeddingModel(),
+			config.Opts.EmbeddingDimensions(),
 		)
 		embeddingWorker := embedding.NewWorker(
 			client,
 			store,
 			config.Opts.EmbeddingBatchSize(),
 			config.Opts.EmbeddingMaxTextBytes(),
+			config.Opts.EmbeddingDimensions(),
 			config.Opts.EmbeddingInterval(),
 		)
 		go embeddingWorker.Run(embeddingCtx)

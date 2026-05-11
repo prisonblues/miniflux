@@ -1509,4 +1509,12 @@ var migrations = [...]func(tx *sql.Tx) error{
 		`)
 		return err
 	},
+	func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`
+			DROP INDEX IF EXISTS entries_embedding_idx;
+			UPDATE entries SET embedding = NULL WHERE embedding IS NOT NULL;
+			ALTER TABLE entries ALTER COLUMN embedding TYPE vector;
+		`)
+		return err
+	},
 }

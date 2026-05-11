@@ -21,21 +21,26 @@ type Client struct {
 	baseURL    string
 	apiKey     string
 	model      string
+	dimensions int
 }
 
 // NewClient creates a new embedding API client.
-func NewClient(baseURL, apiKey, modelName string) *Client {
+// When dimensions > 0, the value is sent in the request so compatible models
+// can truncate their output (Matryoshka / OpenAI dimensions parameter).
+func NewClient(baseURL, apiKey, modelName string, dimensions int) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 120 * time.Second},
 		baseURL:    baseURL,
 		apiKey:     apiKey,
 		model:      modelName,
+		dimensions: dimensions,
 	}
 }
 
 type embeddingRequest struct {
-	Input []string `json:"input"`
-	Model string   `json:"model"`
+	Input      []string `json:"input"`
+	Model      string   `json:"model"`
+	Dimensions int      `json:"dimensions,omitempty"`
 }
 
 type embeddingResponse struct {
@@ -48,10 +53,15 @@ type embeddingResponse struct {
 // Embed returns embeddings for the given texts. The returned slice is
 // positionally aligned with the input.
 func (c *Client) Embed(ctx context.Context, texts []string) ([]model.Vector, error) {
-	body, err := json.Marshal(embeddingRequest{
+	apiReq := embeddingRequest{
 		Input: texts,
 		Model: c.model,
-	})
+	}
+	if c.dimensions > 0 {
+		apiReq.Dimensions = c.dimensions
+	}
+
+	body, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("embedding: marshal request: %w", err)
 	}
