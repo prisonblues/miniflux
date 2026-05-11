@@ -20,6 +20,16 @@ func (s *Storage) UpdateEntryEmbedding(entryID int64, embedding model.Vector) er
 	return nil
 }
 
+// CountEntriesWithoutEmbedding returns the number of entries lacking an embedding.
+func (s *Storage) CountEntriesWithoutEmbedding() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT count(*) FROM entries WHERE embedding IS NULL`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("store: unable to count entries without embedding: %w", err)
+	}
+	return count, nil
+}
+
 // GetEntriesWithoutEmbedding returns entries that have no embedding yet.
 func (s *Storage) GetEntriesWithoutEmbedding(limit int) ([]model.EntryForEmbedding, error) {
 	query := `
