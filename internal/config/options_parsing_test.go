@@ -2070,6 +2070,10 @@ func TestEmbeddingDefaults(t *testing.T) {
 	if configParser.options.EmbeddingAPIKey() != "" {
 		t.Fatalf("Expected EMBEDDING_API_KEY to be empty, got %q", configParser.options.EmbeddingAPIKey())
 	}
+
+	if configParser.options.EmbeddingMaxTextBytes() != 10000 {
+		t.Fatalf("Expected EMBEDDING_MAX_TEXT_BYTES to be 10000, got %d", configParser.options.EmbeddingMaxTextBytes())
+	}
 }
 
 func TestEmbeddingOptionParsing(t *testing.T) {
@@ -2083,6 +2087,7 @@ func TestEmbeddingOptionParsing(t *testing.T) {
 		"EMBEDDING_BATCH_SIZE=100",
 		"EMBEDDING_DIMENSIONS=768",
 		"EMBEDDING_INTERVAL=600",
+		"EMBEDDING_MAX_TEXT_BYTES=32000",
 	}); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -2110,6 +2115,10 @@ func TestEmbeddingOptionParsing(t *testing.T) {
 	if configParser.options.EmbeddingDimensions() != 768 {
 		t.Fatalf("Expected EMBEDDING_DIMENSIONS 768, got %d", configParser.options.EmbeddingDimensions())
 	}
+
+	if configParser.options.EmbeddingMaxTextBytes() != 32000 {
+		t.Fatalf("Expected EMBEDDING_MAX_TEXT_BYTES 32000, got %d", configParser.options.EmbeddingMaxTextBytes())
+	}
 }
 
 func TestEmbeddingBatchSizeValidation(t *testing.T) {
@@ -2125,5 +2134,17 @@ func TestEmbeddingIntervalValidation(t *testing.T) {
 
 	if err := configParser.parseLines([]string{"EMBEDDING_INTERVAL=5"}); err == nil {
 		t.Fatal("Expected error for EMBEDDING_INTERVAL=5 (minimum is 10)")
+	}
+}
+
+func TestEmbeddingMaxTextBytesValidation(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{"EMBEDDING_MAX_TEXT_BYTES=99"}); err == nil {
+		t.Fatal("Expected error for EMBEDDING_MAX_TEXT_BYTES=99 (minimum is 100)")
+	}
+
+	if err := configParser.parseLines([]string{"EMBEDDING_MAX_TEXT_BYTES=100"}); err != nil {
+		t.Fatalf("Unexpected error for EMBEDDING_MAX_TEXT_BYTES=100: %v", err)
 	}
 }

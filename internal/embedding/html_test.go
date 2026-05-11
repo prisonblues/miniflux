@@ -76,41 +76,58 @@ func TestPrepareText(t *testing.T) {
 		name        string
 		title       string
 		htmlContent string
+		maxBytes    int
 		expected    string
 	}{
 		{
 			name:        "title and content",
 			title:       "My Article",
 			htmlContent: "<p>The body of the article.</p>",
+			maxBytes:    10000,
 			expected:    "My Article The body of the article.",
 		},
 		{
 			name:        "title only",
 			title:       "My Article",
 			htmlContent: "",
+			maxBytes:    10000,
 			expected:    "My Article",
 		},
 		{
 			name:        "title with empty HTML",
 			title:       "My Article",
 			htmlContent: "<div>   </div>",
+			maxBytes:    10000,
 			expected:    "My Article",
 		},
 		{
 			name:        "long content is truncated",
 			title:       "Title",
 			htmlContent: "<p>" + strings.Repeat("a", 3000) + "</p>",
+			maxBytes:    2000,
+		},
+		{
+			name:        "zero maxBytes means no truncation",
+			title:       "Title",
+			htmlContent: "<p>" + strings.Repeat("b", 20000) + "</p>",
+			maxBytes:    0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := PrepareText(tt.title, tt.htmlContent)
+			result := PrepareText(tt.title, tt.htmlContent, tt.maxBytes)
 			if tt.expected != "" && result != tt.expected {
 				t.Errorf("PrepareText(%q, ...) = %q, want %q", tt.title, result, tt.expected)
 			}
-			if len(result) > maxTextBytes {
-				t.Errorf("PrepareText result exceeds maxTextBytes: %d > %d", len(result), maxTextBytes)
+			if tt.maxBytes > 0 && len(result) > tt.maxBytes {
+				t.Errorf("PrepareText result exceeds maxBytes: %d > %d", len(result), tt.maxBytes)
+			}
+			if tt.maxBytes == 0 && tt.name == "zero maxBytes means no truncation" {
+				// Full content should be preserved: "Title" + " " + 20000 b's
+				if len(result) != 5+1+20000 {
+					t.Errorf("Expected no truncation, got length %d, want %d", len(result), 5+1+20000)
+				}
 			}
 		})
 	}

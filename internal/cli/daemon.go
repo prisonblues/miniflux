@@ -50,6 +50,7 @@ func startDaemon(store *storage.Storage) {
 			client,
 			store,
 			config.Opts.EmbeddingBatchSize(),
+			config.Opts.EmbeddingMaxTextBytes(),
 			config.Opts.EmbeddingInterval(),
 		)
 		go embeddingWorker.Run(embeddingCtx)

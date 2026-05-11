@@ -245,6 +245,14 @@ func NewConfigOptions() *configOptions {
 					return validateGreaterOrEqualThan(rawValue, 10)
 				},
 			},
+			"EMBEDDING_MAX_TEXT_BYTES": {
+				parsedIntValue: 10000,
+				rawValue:       "10000",
+				valueType:      intType,
+				validator: func(rawValue string) error {
+					return validateGreaterOrEqualThan(rawValue, 100)
+				},
+			},
 			"EMBEDDING_MODEL": {
 				parsedStringValue: "all-minilm",
 				rawValue:          "all-minilm",
@@ -765,6 +773,10 @@ func (c *configOptions) EmbeddingEnabled() bool {
 
 func (c *configOptions) EmbeddingInterval() time.Duration {
 	return c.options["EMBEDDING_INTERVAL"].parsedDuration
+}
+
+func (c *configOptions) EmbeddingMaxTextBytes() int {
+	return c.options["EMBEDDING_MAX_TEXT_BYTES"].parsedIntValue
 }
 
 func (c *configOptions) EmbeddingModel() string {

@@ -20,10 +20,11 @@ type EntryStore interface {
 
 // Worker periodically embeds entries that lack a vector.
 type Worker struct {
-	client    *Client
-	store     EntryStore
-	batchSize int
-	interval  time.Duration
+	client       *Client
+	store        EntryStore
+	batchSize    int
+	maxTextBytes int
+	interval     time.Duration
 
 	// Cumulative stats for logging.
 	totalEmbedded int64
@@ -31,12 +32,13 @@ type Worker struct {
 }
 
 // NewWorker creates a new embedding background worker.
-func NewWorker(client *Client, store EntryStore, batchSize int, interval time.Duration) *Worker {
+func NewWorker(client *Client, store EntryStore, batchSize, maxTextBytes int, interval time.Duration) *Worker {
 	return &Worker{
-		client:    client,
-		store:     store,
-		batchSize: batchSize,
-		interval:  interval,
+		client:       client,
+		store:        store,
+		batchSize:    batchSize,
+		maxTextBytes: maxTextBytes,
+		interval:     interval,
 	}
 }
 
@@ -124,7 +126,7 @@ func (w *Worker) processBatch(ctx context.Context) int {
 
 	texts := make([]string, len(entries))
 	for i, e := range entries {
-		texts[i] = PrepareText(e.Title, e.Content)
+		texts[i] = PrepareText(e.Title, e.Content, w.maxTextBytes)
 	}
 
 	start := time.Now()

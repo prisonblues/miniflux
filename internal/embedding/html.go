@@ -9,12 +9,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-// maxTextBytes caps the plain text sent to the embedding API. Most embedding
-// models (all-MiniLM-L6-v2, nomic-embed-text, etc.) have a 256–512 token
-// context window. ~2000 chars covers that comfortably without sending entire
-// articles that the model would silently truncate anyway.
-const maxTextBytes = 2000
-
 // StripHTML removes all HTML tags and returns the text content.
 func StripHTML(s string) string {
 	tokenizer := html.NewTokenizer(strings.NewReader(s))
@@ -38,9 +32,9 @@ func StripHTML(s string) string {
 }
 
 // PrepareText concatenates the title and stripped HTML content for embedding,
-// truncating to maxTextBytes to avoid sending large payloads that the model
-// would silently truncate anyway.
-func PrepareText(title, htmlContent string) string {
+// truncating to maxBytes to avoid sending unnecessarily large payloads.
+// A maxBytes of 0 means no truncation.
+func PrepareText(title, htmlContent string, maxBytes int) string {
 	plain := StripHTML(htmlContent)
 	var result string
 	if plain == "" {
@@ -49,8 +43,8 @@ func PrepareText(title, htmlContent string) string {
 		result = title + " " + plain
 	}
 
-	if len(result) > maxTextBytes {
-		result = truncateUTF8(result, maxTextBytes)
+	if maxBytes > 0 && len(result) > maxBytes {
+		result = truncateUTF8(result, maxBytes)
 	}
 	return result
 }
