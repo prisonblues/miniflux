@@ -4,14 +4,17 @@
 package api // import "miniflux.app/v2/internal/api"
 
 import (
+	"context"
 	json_parser "encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/embedding"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/integration"
@@ -551,5 +554,36 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 
 	if searchQuery := request.QueryStringParam(r, "search", ""); searchQuery != "" {
 		builder.WithSearchQuery(searchQuery)
+	}
+
+	if config.Opts.EmbeddingEnabled() {
+		if semanticQuery := request.QueryStringParam(r, "semantic_query", ""); semanticQuery != "" {
+			client := embedding.NewClient(
+				config.Opts.EmbeddingAPIURL(),
+				config.Opts.EmbeddingAPIKey(),
+				config.Opts.EmbeddingModel(),
+			)
+			ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+			defer cancel()
+
+			vec, err := client.EmbedSingle(ctx, semanticQuery)
+			if err != nil {
+				slog.Warn("Semantic search embedding failed", slog.Any("error", err))
+			} else if len(vec) > 0 {
+				builder.WithSemanticSearch(vec)
+			}
+		}
+
+		if similarTo := request.QueryInt64Param(r, "similar_to", 0); similarTo > 0 {
+			vec, err := builder.Store().GetEntryEmbedding(similarTo)
+			if err != nil {
+				slog.Warn("Similar-to embedding lookup failed",
+					slog.Int64("entry_id", similarTo),
+					slog.Any("error", err),
+				)
+			} else if len(vec) > 0 {
+				builder.WithSemanticSearch(vec)
+			}
+		}
 	}
 }

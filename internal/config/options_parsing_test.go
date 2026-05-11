@@ -2043,3 +2043,87 @@ func TestValidateSchedulerEntryFrequencyMinLessThanMax(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }
+
+func TestEmbeddingDefaults(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if configParser.options.EmbeddingEnabled() {
+		t.Fatal("Expected EMBEDDING_ENABLED to be false by default")
+	}
+
+	if configParser.options.EmbeddingModel() != "all-minilm" {
+		t.Fatalf("Expected EMBEDDING_MODEL to be 'all-minilm', got %q", configParser.options.EmbeddingModel())
+	}
+
+	if configParser.options.EmbeddingBatchSize() != 50 {
+		t.Fatalf("Expected EMBEDDING_BATCH_SIZE to be 50, got %d", configParser.options.EmbeddingBatchSize())
+	}
+
+	if configParser.options.EmbeddingDimensions() != 384 {
+		t.Fatalf("Expected EMBEDDING_DIMENSIONS to be 384, got %d", configParser.options.EmbeddingDimensions())
+	}
+
+	if configParser.options.EmbeddingAPIURL() != "" {
+		t.Fatalf("Expected EMBEDDING_API_URL to be empty, got %q", configParser.options.EmbeddingAPIURL())
+	}
+
+	if configParser.options.EmbeddingAPIKey() != "" {
+		t.Fatalf("Expected EMBEDDING_API_KEY to be empty, got %q", configParser.options.EmbeddingAPIKey())
+	}
+}
+
+func TestEmbeddingOptionParsing(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{
+		"EMBEDDING_ENABLED=1",
+		"EMBEDDING_API_URL=http://ollama:11434",
+		"EMBEDDING_API_KEY=sk-test",
+		"EMBEDDING_MODEL=nomic-embed-text",
+		"EMBEDDING_BATCH_SIZE=100",
+		"EMBEDDING_DIMENSIONS=768",
+		"EMBEDDING_INTERVAL=600",
+	}); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !configParser.options.EmbeddingEnabled() {
+		t.Fatal("Expected EMBEDDING_ENABLED to be true")
+	}
+
+	if configParser.options.EmbeddingAPIURL() != "http://ollama:11434" {
+		t.Fatalf("Expected EMBEDDING_API_URL 'http://ollama:11434', got %q", configParser.options.EmbeddingAPIURL())
+	}
+
+	if configParser.options.EmbeddingAPIKey() != "sk-test" {
+		t.Fatalf("Expected EMBEDDING_API_KEY 'sk-test', got %q", configParser.options.EmbeddingAPIKey())
+	}
+
+	if configParser.options.EmbeddingModel() != "nomic-embed-text" {
+		t.Fatalf("Expected EMBEDDING_MODEL 'nomic-embed-text', got %q", configParser.options.EmbeddingModel())
+	}
+
+	if configParser.options.EmbeddingBatchSize() != 100 {
+		t.Fatalf("Expected EMBEDDING_BATCH_SIZE 100, got %d", configParser.options.EmbeddingBatchSize())
+	}
+
+	if configParser.options.EmbeddingDimensions() != 768 {
+		t.Fatalf("Expected EMBEDDING_DIMENSIONS 768, got %d", configParser.options.EmbeddingDimensions())
+	}
+}
+
+func TestEmbeddingBatchSizeValidation(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{"EMBEDDING_BATCH_SIZE=0"}); err == nil {
+		t.Fatal("Expected error for EMBEDDING_BATCH_SIZE=0")
+	}
+}
+
+func TestEmbeddingIntervalValidation(t *testing.T) {
+	configParser := NewConfigParser()
+
+	if err := configParser.parseLines([]string{"EMBEDDING_INTERVAL=5"}); err == nil {
+		t.Fatal("Expected error for EMBEDDING_INTERVAL=5 (minimum is 10)")
+	}
+}

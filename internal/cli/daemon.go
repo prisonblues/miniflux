@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/embedding"
 	"miniflux.app/v2/internal/http/server"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
@@ -36,6 +37,22 @@ func startDaemon(store *storage.Storage) {
 	var httpServers []*http.Server
 	if config.Opts.HasHTTPService() {
 		httpServers = server.StartWebServer(store, pool)
+	}
+
+	embeddingCtx, cancelEmbedding := context.WithCancel(context.Background())
+	if config.Opts.EmbeddingEnabled() {
+		client := embedding.NewClient(
+			config.Opts.EmbeddingAPIURL(),
+			config.Opts.EmbeddingAPIKey(),
+			config.Opts.EmbeddingModel(),
+		)
+		embeddingWorker := embedding.NewWorker(
+			client,
+			store,
+			config.Opts.EmbeddingBatchSize(),
+			config.Opts.EmbeddingInterval(),
+		)
+		go embeddingWorker.Run(embeddingCtx)
 	}
 
 	metricsCtx, cancelMetrics := context.WithCancel(context.Background())
@@ -76,6 +93,7 @@ func startDaemon(store *storage.Storage) {
 
 	<-stop
 	slog.Debug("Shutting down the process")
+	cancelEmbedding()
 	cancelMetrics()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

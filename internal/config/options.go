@@ -199,6 +199,57 @@ func NewConfigOptions() *configOptions {
 				rawValue:        "0",
 				valueType:       boolType,
 			},
+			"EMBEDDING_API_KEY": {
+				parsedStringValue: "",
+				rawValue:          "",
+				valueType:         stringType,
+				secret:            true,
+			},
+			"EMBEDDING_API_KEY_FILE": {
+				parsedStringValue: "",
+				rawValue:          "",
+				valueType:         secretFileType,
+				targetKey:         "EMBEDDING_API_KEY",
+			},
+			"EMBEDDING_API_URL": {
+				parsedStringValue: "",
+				rawValue:          "",
+				valueType:         stringType,
+			},
+			"EMBEDDING_BATCH_SIZE": {
+				parsedIntValue: 50,
+				rawValue:       "50",
+				valueType:      intType,
+				validator: func(rawValue string) error {
+					return validateGreaterOrEqualThan(rawValue, 1)
+				},
+			},
+			"EMBEDDING_DIMENSIONS": {
+				parsedIntValue: 384,
+				rawValue:       "384",
+				valueType:      intType,
+				validator: func(rawValue string) error {
+					return validateGreaterOrEqualThan(rawValue, 1)
+				},
+			},
+			"EMBEDDING_ENABLED": {
+				parsedBoolValue: false,
+				rawValue:        "0",
+				valueType:       boolType,
+			},
+			"EMBEDDING_INTERVAL": {
+				parsedDuration: 300 * time.Second,
+				rawValue:       "300",
+				valueType:      secondType,
+				validator: func(rawValue string) error {
+					return validateGreaterOrEqualThan(rawValue, 10)
+				},
+			},
+			"EMBEDDING_MODEL": {
+				parsedStringValue: "all-minilm",
+				rawValue:          "all-minilm",
+				valueType:         stringType,
+			},
 			"DISABLE_HSTS": {
 				parsedBoolValue: false,
 				rawValue:        "0",
@@ -690,6 +741,34 @@ func (c *configOptions) DatabaseURL() string {
 
 func (c *configOptions) DisableHSTS() bool {
 	return c.options["DISABLE_HSTS"].parsedBoolValue
+}
+
+func (c *configOptions) EmbeddingAPIKey() string {
+	return c.options["EMBEDDING_API_KEY"].parsedStringValue
+}
+
+func (c *configOptions) EmbeddingAPIURL() string {
+	return c.options["EMBEDDING_API_URL"].parsedStringValue
+}
+
+func (c *configOptions) EmbeddingBatchSize() int {
+	return c.options["EMBEDDING_BATCH_SIZE"].parsedIntValue
+}
+
+func (c *configOptions) EmbeddingDimensions() int {
+	return c.options["EMBEDDING_DIMENSIONS"].parsedIntValue
+}
+
+func (c *configOptions) EmbeddingEnabled() bool {
+	return c.options["EMBEDDING_ENABLED"].parsedBoolValue
+}
+
+func (c *configOptions) EmbeddingInterval() time.Duration {
+	return c.options["EMBEDDING_INTERVAL"].parsedDuration
+}
+
+func (c *configOptions) EmbeddingModel() string {
+	return c.options["EMBEDDING_MODEL"].parsedStringValue
 }
 
 func (c *configOptions) DisableHTTPService() bool {

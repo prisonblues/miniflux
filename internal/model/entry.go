@@ -40,6 +40,7 @@ type Entry struct {
 	Enclosures  EnclosureList `json:"enclosures"`
 	Feed        *Feed         `json:"feed,omitempty"`
 	Tags        []string      `json:"tags"`
+	Similarity  float64       `json:"similarity,omitempty"`
 }
 
 func NewEntry() *Entry {
@@ -67,6 +68,13 @@ func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
 
 	// The user wants to mark as read on view
 	return user.MarkReadOnView
+}
+
+// EntryForEmbedding holds the minimal fields needed for embedding generation.
+type EntryForEmbedding struct {
+	ID      int64
+	Title   string
+	Content string
 }
 
 // Entries represents a list of entries.
