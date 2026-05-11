@@ -156,6 +156,15 @@ func (e *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
 	return e
 }
 
+// WithoutEntryID excludes a specific entry ID from results.
+func (e *EntryQueryBuilder) WithoutEntryID(entryID int64) *EntryQueryBuilder {
+	if entryID != 0 {
+		e.conditions = append(e.conditions, "e.id <> $"+strconv.Itoa(len(e.args)+1))
+		e.args = append(e.args, entryID)
+	}
+	return e
+}
+
 // WithFeedID filter by feed ID.
 func (e *EntryQueryBuilder) WithFeedID(feedID int64) *EntryQueryBuilder {
 	if feedID > 0 {

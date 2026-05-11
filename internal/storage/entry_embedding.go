@@ -58,10 +58,10 @@ func (s *Storage) GetEntriesWithoutEmbedding(limit int) ([]model.EntryForEmbeddi
 	return entries, nil
 }
 
-// GetEntryEmbedding returns the embedding vector for a single entry.
-func (s *Storage) GetEntryEmbedding(entryID int64) (model.Vector, error) {
+// GetEntryEmbedding returns the embedding vector for a single entry owned by the given user.
+func (s *Storage) GetEntryEmbedding(userID, entryID int64) (model.Vector, error) {
 	var v model.Vector
-	err := s.db.QueryRow(`SELECT embedding FROM entries WHERE id = $1`, entryID).Scan(&v)
+	err := s.db.QueryRow(`SELECT embedding FROM entries WHERE id = $1 AND user_id = $2`, entryID, userID).Scan(&v)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

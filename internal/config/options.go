@@ -199,6 +199,26 @@ func NewConfigOptions() *configOptions {
 				rawValue:        "0",
 				valueType:       boolType,
 			},
+			"DISABLE_HSTS": {
+				parsedBoolValue: false,
+				rawValue:        "0",
+				valueType:       boolType,
+			},
+			"DISABLE_HTTP_SERVICE": {
+				parsedBoolValue: false,
+				rawValue:        "0",
+				valueType:       boolType,
+			},
+			"DISABLE_LOCAL_AUTH": {
+				parsedBoolValue: false,
+				rawValue:        "0",
+				valueType:       boolType,
+			},
+			"DISABLE_SCHEDULER_SERVICE": {
+				parsedBoolValue: false,
+				rawValue:        "0",
+				valueType:       boolType,
+			},
 			"EMBEDDING_API_KEY": {
 				parsedStringValue: "",
 				rawValue:          "",
@@ -224,14 +244,6 @@ func NewConfigOptions() *configOptions {
 					return validateGreaterOrEqualThan(rawValue, 1)
 				},
 			},
-			"EMBEDDING_DIMENSIONS": {
-				parsedIntValue: 384,
-				rawValue:       "384",
-				valueType:      intType,
-				validator: func(rawValue string) error {
-					return validateGreaterOrEqualThan(rawValue, 1)
-				},
-			},
 			"EMBEDDING_ENABLED": {
 				parsedBoolValue: false,
 				rawValue:        "0",
@@ -250,6 +262,9 @@ func NewConfigOptions() *configOptions {
 				rawValue:       "10000",
 				valueType:      intType,
 				validator: func(rawValue string) error {
+					if rawValue == "0" {
+						return nil
+					}
 					return validateGreaterOrEqualThan(rawValue, 100)
 				},
 			},
@@ -257,26 +272,6 @@ func NewConfigOptions() *configOptions {
 				parsedStringValue: "all-minilm",
 				rawValue:          "all-minilm",
 				valueType:         stringType,
-			},
-			"DISABLE_HSTS": {
-				parsedBoolValue: false,
-				rawValue:        "0",
-				valueType:       boolType,
-			},
-			"DISABLE_HTTP_SERVICE": {
-				parsedBoolValue: false,
-				rawValue:        "0",
-				valueType:       boolType,
-			},
-			"DISABLE_LOCAL_AUTH": {
-				parsedBoolValue: false,
-				rawValue:        "0",
-				valueType:       boolType,
-			},
-			"DISABLE_SCHEDULER_SERVICE": {
-				parsedBoolValue: false,
-				rawValue:        "0",
-				valueType:       boolType,
 			},
 			"FETCHER_ALLOW_PRIVATE_NETWORKS": {
 				parsedBoolValue: false,
@@ -761,10 +756,6 @@ func (c *configOptions) EmbeddingAPIURL() string {
 
 func (c *configOptions) EmbeddingBatchSize() int {
 	return c.options["EMBEDDING_BATCH_SIZE"].parsedIntValue
-}
-
-func (c *configOptions) EmbeddingDimensions() int {
-	return c.options["EMBEDDING_DIMENSIONS"].parsedIntValue
 }
 
 func (c *configOptions) EmbeddingEnabled() bool {

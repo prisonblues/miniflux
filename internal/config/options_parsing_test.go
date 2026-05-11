@@ -2059,10 +2059,6 @@ func TestEmbeddingDefaults(t *testing.T) {
 		t.Fatalf("Expected EMBEDDING_BATCH_SIZE to be 50, got %d", configParser.options.EmbeddingBatchSize())
 	}
 
-	if configParser.options.EmbeddingDimensions() != 384 {
-		t.Fatalf("Expected EMBEDDING_DIMENSIONS to be 384, got %d", configParser.options.EmbeddingDimensions())
-	}
-
 	if configParser.options.EmbeddingAPIURL() != "" {
 		t.Fatalf("Expected EMBEDDING_API_URL to be empty, got %q", configParser.options.EmbeddingAPIURL())
 	}
@@ -2085,7 +2081,6 @@ func TestEmbeddingOptionParsing(t *testing.T) {
 		"EMBEDDING_API_KEY=sk-test",
 		"EMBEDDING_MODEL=nomic-embed-text",
 		"EMBEDDING_BATCH_SIZE=100",
-		"EMBEDDING_DIMENSIONS=768",
 		"EMBEDDING_INTERVAL=600",
 		"EMBEDDING_MAX_TEXT_BYTES=32000",
 	}); err != nil {
@@ -2110,10 +2105,6 @@ func TestEmbeddingOptionParsing(t *testing.T) {
 
 	if configParser.options.EmbeddingBatchSize() != 100 {
 		t.Fatalf("Expected EMBEDDING_BATCH_SIZE 100, got %d", configParser.options.EmbeddingBatchSize())
-	}
-
-	if configParser.options.EmbeddingDimensions() != 768 {
-		t.Fatalf("Expected EMBEDDING_DIMENSIONS 768, got %d", configParser.options.EmbeddingDimensions())
 	}
 
 	if configParser.options.EmbeddingMaxTextBytes() != 32000 {
@@ -2146,5 +2137,13 @@ func TestEmbeddingMaxTextBytesValidation(t *testing.T) {
 
 	if err := configParser.parseLines([]string{"EMBEDDING_MAX_TEXT_BYTES=100"}); err != nil {
 		t.Fatalf("Unexpected error for EMBEDDING_MAX_TEXT_BYTES=100: %v", err)
+	}
+
+	configParser = NewConfigParser()
+	if err := configParser.parseLines([]string{"EMBEDDING_MAX_TEXT_BYTES=0"}); err != nil {
+		t.Fatalf("Unexpected error for EMBEDDING_MAX_TEXT_BYTES=0 (0 disables truncation): %v", err)
+	}
+	if configParser.options.EmbeddingMaxTextBytes() != 0 {
+		t.Fatalf("Expected EMBEDDING_MAX_TEXT_BYTES to be 0, got %d", configParser.options.EmbeddingMaxTextBytes())
 	}
 }

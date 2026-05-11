@@ -572,10 +572,9 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 			} else if len(vec) > 0 {
 				builder.WithSemanticSearch(vec)
 			}
-		}
-
-		if similarTo := request.QueryInt64Param(r, "similar_to", 0); similarTo > 0 {
-			vec, err := builder.Store().GetEntryEmbedding(similarTo)
+		} else if similarTo := request.QueryInt64Param(r, "similar_to", 0); similarTo > 0 {
+			userID := request.UserID(r)
+			vec, err := builder.Store().GetEntryEmbedding(userID, similarTo)
 			if err != nil {
 				slog.Warn("Similar-to embedding lookup failed",
 					slog.Int64("entry_id", similarTo),
@@ -583,6 +582,7 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 				)
 			} else if len(vec) > 0 {
 				builder.WithSemanticSearch(vec)
+				builder.WithoutEntryID(similarTo)
 			}
 		}
 	}
