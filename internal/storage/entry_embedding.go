@@ -110,29 +110,35 @@ func (s *Storage) ConfigureEmbeddingColumn(dimensions int) error {
 		slog.Int("new_dimensions", dimensions),
 	)
 
-	// Drop the index, null out any existing embeddings, re-type, rebuild index.
-	_, err = s.db.Exec(`DROP INDEX IF EXISTS entries_embedding_idx`)
+	tx, err := s.db.Begin()
 	if err != nil {
+		return fmt.Errorf("store: unable to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Drop the index, null out any existing embeddings, re-type, rebuild index.
+	if _, err = tx.Exec(`DROP INDEX IF EXISTS entries_embedding_idx`); err != nil {
 		return fmt.Errorf("store: unable to drop embedding index: %w", err)
 	}
 
-	_, err = s.db.Exec(`UPDATE entries SET embedding = NULL WHERE embedding IS NOT NULL`)
-	if err != nil {
+	if _, err = tx.Exec(`UPDATE entries SET embedding = NULL WHERE embedding IS NOT NULL`); err != nil {
 		return fmt.Errorf("store: unable to null embeddings: %w", err)
 	}
 
 	alterSQL := fmt.Sprintf(`ALTER TABLE entries ALTER COLUMN embedding TYPE vector(%d)`, dimensions)
-	_, err = s.db.Exec(alterSQL)
-	if err != nil {
+	if _, err = tx.Exec(alterSQL); err != nil {
 		return fmt.Errorf("store: unable to alter embedding column to vector(%d): %w", dimensions, err)
 	}
 
-	_, err = s.db.Exec(`
+	if _, err = tx.Exec(`
 		CREATE INDEX entries_embedding_idx
 			ON entries USING hnsw (embedding vector_cosine_ops)
-	`)
-	if err != nil {
+	`); err != nil {
 		return fmt.Errorf("store: unable to create embedding index: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("store: unable to commit embedding column reconfiguration: %w", err)
 	}
 
 	return nil

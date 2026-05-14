@@ -175,6 +175,30 @@ func TestEmbedCountMismatch(t *testing.T) {
 	}
 }
 
+func TestEmbedDuplicateIndex(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := embeddingResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+				Index     int       `json:"index"`
+			}{
+				{Embedding: []float32{0.1, 0.2}, Index: 0},
+				{Embedding: []float32{0.3, 0.4}, Index: 0}, // duplicate index
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "", "model", 0)
+	_, err := client.Embed(context.Background(), []string{"first", "second"})
+	if err == nil {
+		t.Fatal("expected error for duplicate response index")
+	}
+}
+
 func TestEmbedWithDimensionsPresent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req embeddingRequest

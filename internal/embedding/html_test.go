@@ -37,7 +37,7 @@ func TestStripHTML(t *testing.T) {
 		{
 			name:     "script and style",
 			input:    `<p>text</p><script>alert('xss')</script><style>.x{}</style><p>more</p>`,
-			expected: "text alert('xss') .x{} more",
+			expected: "text more",
 		},
 		{
 			name:     "empty string",
@@ -143,7 +143,8 @@ func TestTruncateUTF8(t *testing.T) {
 		{"short ASCII", "hello", 10, 5},
 		{"exact fit", "hello", 5, 5},
 		{"truncate ASCII", "hello world", 5, 5},
-		{"truncate multibyte", "héllo", 3, 2}, // é is 2 bytes, so "hé" is 3 bytes, truncating at 3 keeps "h" + é start byte = backs up to "h"
+		{"truncate multibyte safe", "héllo", 3, 3},  // "hé" = 3 bytes (h + 0xC3 0xA9), fits within maxBytes=3
+		{"truncate multibyte split", "héllo", 2, 1}, // can't fit é (2 bytes) after "h", backs up to "h"
 	}
 
 	for _, tt := range tests {
@@ -151,6 +152,9 @@ func TestTruncateUTF8(t *testing.T) {
 			result := truncateUTF8(tt.input, tt.maxBytes)
 			if len(result) > tt.maxBytes {
 				t.Errorf("result %d bytes exceeds max %d", len(result), tt.maxBytes)
+			}
+			if len(result) != tt.wantLen {
+				t.Errorf("got %d bytes, want %d", len(result), tt.wantLen)
 			}
 		})
 	}

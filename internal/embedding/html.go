@@ -10,16 +10,35 @@ import (
 )
 
 // StripHTML removes all HTML tags and returns the text content.
+// Content inside <script> and <style> elements is excluded.
 func StripHTML(s string) string {
 	tokenizer := html.NewTokenizer(strings.NewReader(s))
 	var b strings.Builder
+	skip := 0
 
 	for {
 		tt := tokenizer.Next()
 		switch tt {
 		case html.ErrorToken:
 			return strings.TrimSpace(b.String())
+		case html.StartTagToken:
+			tn, _ := tokenizer.TagName()
+			tag := string(tn)
+			if tag == "script" || tag == "style" {
+				skip++
+			}
+		case html.EndTagToken:
+			tn, _ := tokenizer.TagName()
+			tag := string(tn)
+			if tag == "script" || tag == "style" {
+				if skip > 0 {
+					skip--
+				}
+			}
 		case html.TextToken:
+			if skip > 0 {
+				continue
+			}
 			text := strings.TrimSpace(tokenizer.Token().Data)
 			if text != "" {
 				if b.Len() > 0 {

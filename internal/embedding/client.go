@@ -101,6 +101,9 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([]model.Vector, err
 		if d.Index < 0 || d.Index >= len(texts) {
 			return nil, fmt.Errorf("embedding: response index %d out of range", d.Index)
 		}
+		if vectors[d.Index] != nil {
+			return nil, fmt.Errorf("embedding: duplicate response index %d", d.Index)
+		}
 		vectors[d.Index] = model.Vector(d.Embedding)
 	}
 
