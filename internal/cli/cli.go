@@ -34,7 +34,7 @@ const (
 	flagRunCleanupTasksHelp  = "Run cleanup tasks (delete old sessions and archive old entries)"
 	flagExportUserFeedsHelp  = "Export user feeds (provide the username as argument)"
 	flagResetNextCheckAtHelp = "Reset the next check time for all feeds"
-	flagMCPHelp              = "Start an MCP (Model Context Protocol) server on stdin/stdout"
+	flagMCPHelp              = "Start an MCP (Model Context Protocol) server on stdin/stdout. Set MCP_API_KEY to a Miniflux user API key to select which user's feeds are exposed (auto-detected for single-user instances)"
 )
 
 // Parse parses command line arguments.

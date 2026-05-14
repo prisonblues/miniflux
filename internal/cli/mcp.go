@@ -39,8 +39,15 @@ func startMCPServer(store *storage.Storage) {
 	}
 }
 
-// resolveUser determines the user ID for MCP operations.
-// It checks MCP_API_KEY first, then falls back to auto-selecting a single user.
+// resolveUser determines which Miniflux user's feeds the MCP server exposes.
+//
+// The MCP server runs over stdio with no network authentication — the calling
+// process (e.g. Claude Desktop) spawns it directly. MCP_API_KEY is not used
+// for MCP authentication; it is a regular Miniflux user API key (the same one
+// generated under Settings > API Keys) used solely to identify the user whose
+// data should be served.
+//
+// For single-user instances, the user is auto-detected and no key is needed.
 func resolveUser(store *storage.Storage) (int64, error) {
 	apiKey := config.Opts.MCPAPIKey()
 	if apiKey != "" {
@@ -63,5 +70,6 @@ func resolveUser(store *storage.Storage) (int64, error) {
 		return users[0].ID, nil
 	}
 
-	return 0, fmt.Errorf("MCP_API_KEY is required when multiple users exist (%d users found)", count)
+	return 0, fmt.Errorf("MCP_API_KEY is required when multiple users exist (%d users found); "+
+		"set it to a Miniflux user API key (Settings > API Keys) to select the user", count)
 }

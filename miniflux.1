@@ -75,6 +75,18 @@ Show build information\&.
 Show build information\&.
 .RE
 .PP
+.B \-mcp
+.RS 4
+Start an MCP (Model Context Protocol) server on stdin/stdout\&.
+.br
+The MCP server lets AI agents search, browse, and monitor RSS
+feeds via JSON-RPC over stdio\&.
+.br
+Set \fBMCP_API_KEY\fR to a Miniflux user API key to select which
+user's feeds are exposed\&. For single-user instances the user is
+auto-detected\&.
+.RE
+.PP
 .B \-migrate
 .RS 4
 Run SQL migrations\&.
@@ -426,6 +438,24 @@ Default is "Miniflux is currently under maintenance"\&.
 Set to 1 to enable maintenance mode\&.
 .br
 Disabled by default\&.
+.TP
+.B MCP_API_KEY
+Miniflux user API key used to identify which user's feeds the
+MCP server exposes (the same key generated under
+Settings > API Keys)\&.
+.br
+This is \fBnot\fR an MCP authentication token \(em the MCP server
+runs over stdio with no network auth\&. It simply selects the
+Miniflux user\&.
+.br
+Not required for single-user instances (auto-detected)\&.
+.br
+Default is empty\&.
+.TP
+.B MCP_API_KEY_FILE
+Path to a file containing the \fBMCP_API_KEY\fR value\&.
+.br
+Default is empty\&.
 .TP
 .B MEDIA_PROXY_CUSTOM_URL
 Sets an external server to proxy media through\&.
