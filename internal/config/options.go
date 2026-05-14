@@ -419,6 +419,12 @@ func NewConfigOptions() *configOptions {
 				rawValue:        "0",
 				valueType:       boolType,
 			},
+			"MCP_API_KEY": {
+				parsedStringValue: "",
+				rawValue:          "",
+				valueType:         stringType,
+				secret:            true,
+			},
 			"MEDIA_PROXY_CUSTOM_URL": {
 				rawValue:  "",
 				valueType: urlType,
@@ -843,6 +849,10 @@ func (c *configOptions) HasHTTPClientProxyURLConfigured() bool {
 
 func (c *configOptions) HasMaintenanceMode() bool {
 	return c.options["MAINTENANCE_MODE"].parsedBoolValue
+}
+
+func (c *configOptions) MCPAPIKey() string {
+	return c.options["MCP_API_KEY"].parsedStringValue
 }
 
 func (c *configOptions) HasMetricsCollector() bool {
