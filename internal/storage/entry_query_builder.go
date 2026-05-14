@@ -71,6 +71,7 @@ func (e *EntryQueryBuilder) WithSemanticSearch(embedding model.Vector) *EntryQue
 	e.similarityExpression = fmt.Sprintf("1 - (e.embedding <=> $%d)", nArgs)
 	e.args = append(e.args, embedding)
 
+	e.sortExpressions = nil
 	e.WithSorting(
 		fmt.Sprintf("e.embedding <=> $%d", nArgs),
 		"ASC",
