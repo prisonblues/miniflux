@@ -82,6 +82,10 @@ func (c *configOptions) Validate() error {
 		return errors.New("DATABASE_MIN_CONNS must be less than or equal to DATABASE_MAX_CONNS")
 	}
 
+	if c.EmbeddingEnabled() && c.EmbeddingAPIURL() == "" {
+		return errors.New("EMBEDDING_API_URL must be set when EMBEDDING_ENABLED is true")
+	}
+
 	if c.SchedulerRoundRobinMinInterval() > c.SchedulerRoundRobinMaxInterval() {
 		return errors.New("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL must be less than or equal to SCHEDULER_ROUND_ROBIN_MAX_INTERVAL")
 	}

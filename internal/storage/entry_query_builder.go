@@ -18,14 +18,15 @@ import (
 
 // EntryQueryBuilder builds a SQL query to fetch entries.
 type EntryQueryBuilder struct {
-	store           *Storage
-	args            []any
-	conditions      []string
-	sortExpressions []string
-	limit           int
-	offset          int
-	fetchEnclosures bool
-	excludeContent  bool
+	store                *Storage
+	args                 []any
+	conditions           []string
+	sortExpressions      []string
+	limit                int
+	offset               int
+	fetchEnclosures      bool
+	excludeContent       bool
+	similarityExpression string
 }
 
 // WithEnclosures fetches enclosures for each entry.
@@ -55,6 +56,26 @@ func (e *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder {
 			"DESC",
 		)
 	}
+	return e
+}
+
+// WithSemanticSearch adds a vector cosine similarity search against the given embedding.
+// Results are ordered by similarity (descending) and only entries with embeddings are returned.
+func (e *EntryQueryBuilder) WithSemanticSearch(embedding model.Vector) *EntryQueryBuilder {
+	if len(embedding) == 0 {
+		return e
+	}
+
+	nArgs := len(e.args) + 1
+	e.conditions = append(e.conditions, "e.embedding IS NOT NULL")
+	e.similarityExpression = fmt.Sprintf("1 - (e.embedding <=> $%d)", nArgs)
+	e.args = append(e.args, embedding)
+
+	e.WithSorting(
+		fmt.Sprintf("e.embedding <=> $%d", nArgs),
+		"ASC",
+	)
+
 	return e
 }
 
@@ -130,6 +151,15 @@ func (e *EntryQueryBuilder) WithEntryIDs(entryIDs []int64) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
 		e.conditions = append(e.conditions, "e.id = $"+strconv.Itoa(len(e.args)+1))
+		e.args = append(e.args, entryID)
+	}
+	return e
+}
+
+// WithoutEntryID excludes a specific entry ID from results.
+func (e *EntryQueryBuilder) WithoutEntryID(entryID int64) *EntryQueryBuilder {
+	if entryID != 0 {
+		e.conditions = append(e.conditions, "e.id <> $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, entryID)
 	}
 	return e
@@ -314,6 +344,7 @@ func (e *EntryQueryBuilder) fetchEntries(withCount bool) (model.Entries, int, er
 			e.created_at,
 			e.changed_at,
 			e.tags,
+			` + e.similarityColumn() + `,
 			f.title as feed_title,
 			f.feed_url,
 			f.site_url,
@@ -384,6 +415,7 @@ func (e *EntryQueryBuilder) fetchEntries(withCount bool) (model.Entries, int, er
 			&entry.CreatedAt,
 			&entry.ChangedAt,
 			pq.Array(&entry.Tags),
+			&entry.Similarity,
 			&entry.Feed.Title,
 			&entry.Feed.FeedURL,
 			&entry.Feed.SiteURL,
@@ -496,6 +528,13 @@ func (e *EntryQueryBuilder) contentColumn() string {
 	return "e.content"
 }
 
+func (e *EntryQueryBuilder) similarityColumn() string {
+	if e.similarityExpression != "" {
+		return e.similarityExpression + " AS similarity"
+	}
+	return "0::float AS similarity"
+}
+
 func (e *EntryQueryBuilder) buildCondition() string {
 	return strings.Join(e.conditions, " AND ")
 }
@@ -525,6 +564,11 @@ func NewEntryQueryBuilder(store *Storage, userID int64) *EntryQueryBuilder {
 		args:       []any{userID},
 		conditions: []string{"e.user_id = $1"},
 	}
+}
+
+// Store returns the storage instance associated with this builder.
+func (e *EntryQueryBuilder) Store() *Storage {
+	return e.store
 }
 
 // NewAnonymousQueryBuilder returns a new EntryQueryBuilder suitable for anonymous users.

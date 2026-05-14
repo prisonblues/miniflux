@@ -1215,6 +1215,14 @@ func buildFilterQueryString(path string, filter *Filter) string {
 			values.Set("search", filter.Search)
 		}
 
+		if filter.SemanticQuery != "" {
+			values.Set("semantic_query", filter.SemanticQuery)
+		}
+
+		if filter.SimilarTo > 0 {
+			values.Set("similar_to", strconv.FormatInt(filter.SimilarTo, 10))
+		}
+
 		if filter.CategoryID > 0 {
 			values.Set("category_id", strconv.FormatInt(filter.CategoryID, 10))
 		}

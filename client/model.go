@@ -266,6 +266,7 @@ type Entry struct {
 	UserID      int64      `json:"user_id"`
 	FeedID      int64      `json:"feed_id"`
 	Starred     bool       `json:"starred"`
+	Similarity  float64    `json:"similarity,omitempty"`
 }
 
 // EntryModificationRequest represents a request to modify an entry.
@@ -317,6 +318,8 @@ type Filter struct {
 	BeforeEntryID   int64
 	AfterEntryID    int64
 	Search          string
+	SemanticQuery   string
+	SimilarTo       int64
 	CategoryID      int64
 	FeedID          int64
 	Statuses        []string

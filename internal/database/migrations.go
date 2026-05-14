@@ -1496,4 +1496,25 @@ var migrations = [...]func(tx *sql.Tx) error{
 		`)
 		return err
 	},
+	func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`
+			CREATE EXTENSION IF NOT EXISTS vector;
+
+			ALTER TABLE entries
+				ADD COLUMN embedding vector(384);
+
+			CREATE INDEX entries_embedding_idx
+				ON entries
+				USING hnsw (embedding vector_cosine_ops);
+		`)
+		return err
+	},
+	func(tx *sql.Tx) (err error) {
+		_, err = tx.Exec(`
+			DROP INDEX IF EXISTS entries_embedding_idx;
+			UPDATE entries SET embedding = NULL WHERE embedding IS NOT NULL;
+			ALTER TABLE entries ALTER COLUMN embedding TYPE vector;
+		`)
+		return err
+	},
 }
