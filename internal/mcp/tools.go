@@ -23,14 +23,30 @@ const (
 	defaultTopicLim = 5
 )
 
+type contextKey int
+
+// UserIDContextKey is the context key for the authenticated MCP user ID.
+// Used by the HTTP transport auth middleware to pass the resolved user to
+// tool handlers. In stdio mode the handler's fixed userID field is used instead.
+const UserIDContextKey contextKey = iota
+
 // handler holds the dependencies for MCP tool handlers.
 type handler struct {
 	store           *storage.Storage
-	userID          int64
+	userID          int64             // fixed user for stdio mode; 0 when using HTTP transport
 	embeddingClient *embedding.Client // nil when embeddings disabled
 }
 
-func (h *handler) searchEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// getUserID returns the user ID for the current request. It checks the context
+// first (set by HTTP auth middleware) and falls back to the handler's fixed userID.
+func (h *handler) getUserID(ctx context.Context) int64 {
+	if id, ok := ctx.Value(UserIDContextKey).(int64); ok && id > 0 {
+		return id
+	}
+	return h.userID
+}
+
+func (h *handler) searchEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query, err := req.RequireString("query")
 	if err != nil {
 		return mcp.NewToolResultError("query is required"), nil
@@ -40,7 +56,7 @@ func (h *handler) searchEntries(_ context.Context, req mcp.CallToolRequest) (*mc
 	status := req.GetString("status", "")
 	categoryID := int64(req.GetInt("category_id", 0))
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithSearchQuery(query)
 	builder.WithLimit(limit)
 	if status != "" {
@@ -84,7 +100,7 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 		return mcp.NewToolResultError(fmt.Sprintf("embedding failed: %v", err)), nil
 	}
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithSemanticSearch(vec)
 	builder.WithLimit(limit)
 	if status != "" {
@@ -106,7 +122,7 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 	return mcp.NewToolResultJSON(results)
 }
 
-func (h *handler) similarEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *handler) similarEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if h.embeddingClient == nil {
 		return mcp.NewToolResultError("similar_entries requires EMBEDDING_ENABLED=true"), nil
 	}
@@ -118,7 +134,7 @@ func (h *handler) similarEntries(_ context.Context, req mcp.CallToolRequest) (*m
 
 	limit := clampLimit(req.GetInt("limit", defaultLimit))
 
-	vec, err := h.store.GetEntryEmbedding(h.userID, entryID)
+	vec, err := h.store.GetEntryEmbedding(h.getUserID(ctx), entryID)
 	if err != nil {
 		return nil, fmt.Errorf("similar_entries: lookup embedding: %w", err)
 	}
@@ -126,7 +142,7 @@ func (h *handler) similarEntries(_ context.Context, req mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError(fmt.Sprintf("entry %d has no embedding", entryID)), nil
 	}
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithSemanticSearch(vec)
 	builder.WithoutEntryID(entryID)
 	builder.WithLimit(limit)
@@ -143,7 +159,7 @@ func (h *handler) similarEntries(_ context.Context, req mcp.CallToolRequest) (*m
 	return mcp.NewToolResultJSON(results)
 }
 
-func (h *handler) recentEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *handler) recentEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	hours := req.GetInt("hours", defaultHours)
 	if hours <= 0 {
 		hours = defaultHours
@@ -153,7 +169,7 @@ func (h *handler) recentEntries(_ context.Context, req mcp.CallToolRequest) (*mc
 
 	since := time.Now().UTC().Add(-time.Duration(hours) * time.Hour)
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.AfterPublishedDate(since)
 	builder.WithLimit(limit)
 	builder.WithSorting("e.published_at", "DESC")
@@ -173,8 +189,8 @@ func (h *handler) recentEntries(_ context.Context, req mcp.CallToolRequest) (*mc
 	return mcp.NewToolResultJSON(results)
 }
 
-func (h *handler) listFeeds(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	builder := storage.NewFeedQueryBuilder(h.store, h.userID)
+func (h *handler) listFeeds(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	builder := storage.NewFeedQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithSorting("lower(f.title)", "ASC")
 	feeds, err := builder.GetFeeds()
 	if err != nil {
@@ -188,7 +204,7 @@ func (h *handler) listFeeds(_ context.Context, _ mcp.CallToolRequest) (*mcp.Call
 	return mcp.NewToolResultJSON(results)
 }
 
-func (h *handler) feedEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *handler) feedEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	feedID := int64(req.GetInt("feed_id", 0))
 	if feedID == 0 {
 		return mcp.NewToolResultError("feed_id is required"), nil
@@ -197,7 +213,7 @@ func (h *handler) feedEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.
 	limit := clampLimit(req.GetInt("limit", defaultLimit))
 	query := req.GetString("query", "")
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithFeedID(feedID)
 	builder.WithLimit(limit)
 	builder.WithSorting("e.published_at", "DESC")
@@ -263,7 +279,7 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	results := make([]topicResult, 0, len(topics))
 
 	for _, topic := range topics {
-		builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+		builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 		builder.AfterPublishedDate(since)
 		builder.WithLimit(limitPerTopic)
 
@@ -296,13 +312,13 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	return mcp.NewToolResultJSON(results)
 }
 
-func (h *handler) getEntry(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *handler) getEntry(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	entryID := int64(req.GetInt("entry_id", 0))
 	if entryID == 0 {
 		return mcp.NewToolResultError("entry_id is required"), nil
 	}
 
-	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
+	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
 	builder.WithEntryID(entryID)
 	entry, err := builder.GetEntry()
 	if err != nil {

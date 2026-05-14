@@ -15,6 +15,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/embedding"
 	"miniflux.app/v2/internal/http/server"
+	mcpserver "miniflux.app/v2/internal/mcp"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/systemd"
@@ -39,16 +40,17 @@ func startDaemon(store *storage.Storage) {
 		httpServers = server.StartWebServer(store, pool)
 	}
 
+	var embeddingClient *embedding.Client
 	embeddingCtx, cancelEmbedding := context.WithCancel(context.Background())
 	if config.Opts.EmbeddingEnabled() {
-		client := embedding.NewClient(
+		embeddingClient = embedding.NewClient(
 			config.Opts.EmbeddingAPIURL(),
 			config.Opts.EmbeddingAPIKey(),
 			config.Opts.EmbeddingModel(),
 			config.Opts.EmbeddingDimensions(),
 		)
 		embeddingWorker := embedding.NewWorker(
-			client,
+			embeddingClient,
 			store,
 			config.Opts.EmbeddingBatchSize(),
 			config.Opts.EmbeddingMaxTextBytes(),
@@ -56,6 +58,11 @@ func startDaemon(store *storage.Storage) {
 			config.Opts.EmbeddingInterval(),
 		)
 		go embeddingWorker.Run(embeddingCtx)
+	}
+
+	var mcpHTTPServer *http.Server
+	if config.Opts.MCPEnabled() {
+		mcpHTTPServer = mcpserver.StartHTTPServer(store, embeddingClient, config.Opts.MCPHTTPAddr())
 	}
 
 	metricsCtx, cancelMetrics := context.WithCancel(context.Background())
@@ -100,6 +107,13 @@ func startDaemon(store *storage.Storage) {
 	cancelMetrics()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	if mcpHTTPServer != nil {
+		slog.Debug("Shutting down MCP HTTP server...")
+		if err := mcpHTTPServer.Shutdown(ctx); err != nil {
+			slog.Error("MCP HTTP server shutdown error", slog.Any("error", err))
+		}
+	}
 
 	if len(httpServers) > 0 {
 		slog.Debug("Shutting down HTTP servers...")
