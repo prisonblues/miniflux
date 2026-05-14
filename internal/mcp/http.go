@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"miniflux.app/v2/internal/embedding"
 	"miniflux.app/v2/internal/storage"
@@ -31,8 +32,9 @@ func StartHTTPServer(store *storage.Storage, embeddingClient *embedding.Client, 
 	mux.Handle("/mcp", apiKeyAuth(store, streamServer))
 
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {

@@ -33,8 +33,8 @@ const UserIDContextKey contextKey = iota
 // handler holds the dependencies for MCP tool handlers.
 type handler struct {
 	store           *storage.Storage
-	userID          int64              // fixed user for stdio mode; 0 when using HTTP transport
-	embeddingClient *embedding.Client  // nil when embeddings disabled
+	userID          int64             // fixed user for stdio mode; 0 when using HTTP transport
+	embeddingClient *embedding.Client // nil when embeddings disabled
 }
 
 // getUserID returns the user ID for the current request. It checks the context

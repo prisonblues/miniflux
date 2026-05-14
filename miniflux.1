@@ -457,6 +457,19 @@ Path to a file containing the \fBMCP_API_KEY\fR value\&.
 .br
 Default is empty\&.
 .TP
+.B MCP_ENABLED
+Set to 1 to enable the MCP HTTP server in daemon mode\&.
+.br
+Requests are authenticated via the \fBX-Auth-Token\fR header
+(same as the REST API)\&.
+.br
+Disabled by default\&.
+.TP
+.B MCP_HTTP_ADDR
+Listen address for the MCP HTTP server\&.
+.br
+Default is "127.0.0.1:8081"\&.
+.TP
 .B MEDIA_PROXY_CUSTOM_URL
 Sets an external server to proxy media through\&.
 .br
