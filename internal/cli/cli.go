@@ -34,6 +34,7 @@ const (
 	flagRunCleanupTasksHelp  = "Run cleanup tasks (delete old sessions and archive old entries)"
 	flagExportUserFeedsHelp  = "Export user feeds (provide the username as argument)"
 	flagResetNextCheckAtHelp = "Reset the next check time for all feeds"
+	flagMCPHelp              = "Start an MCP (Model Context Protocol) server on stdin/stdout. Set MCP_API_KEY to a Miniflux user API key to select which user's feeds are exposed (auto-detected for single-user instances)"
 )
 
 // Parse parses command line arguments.
@@ -55,6 +56,7 @@ func Parse() {
 		flagRefreshFeeds         bool
 		flagRunCleanupTasks      bool
 		flagExportUserFeeds      string
+		flagMCP                  bool
 	)
 
 	flag.BoolVar(&flagInfo, "info", false, flagInfoHelp)
@@ -75,6 +77,7 @@ func Parse() {
 	flag.BoolVar(&flagRefreshFeeds, "refresh-feeds", false, flagRefreshFeedsHelp)
 	flag.BoolVar(&flagRunCleanupTasks, "run-cleanup-tasks", false, flagRunCleanupTasksHelp)
 	flag.StringVar(&flagExportUserFeeds, "export-user-feeds", "", flagExportUserFeedsHelp)
+	flag.BoolVar(&flagMCP, "mcp", false, flagMCPHelp)
 	flag.Parse()
 
 	cfg := config.NewConfigParser()
@@ -242,6 +245,11 @@ func Parse() {
 
 	if flagRunCleanupTasks {
 		runCleanupTasks(store)
+		return
+	}
+
+	if flagMCP {
+		startMCPServer(store)
 		return
 	}
 
