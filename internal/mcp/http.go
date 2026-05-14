@@ -7,7 +7,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/embedding"
 	"miniflux.app/v2/internal/storage"
@@ -15,36 +14,21 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// StartHTTPServer creates and starts an MCP HTTP server using the streamable
-// HTTP transport from the mcp-go SDK. Requests are authenticated via the
-// X-Auth-Token header (same as the REST API), and the resolved user ID is
-// injected into the request context for tool handlers.
+// NewHandler creates an http.Handler that serves the MCP protocol over
+// streamable HTTP. Requests are authenticated via the X-Auth-Token header
+// (same as the REST API), and the resolved user ID is injected into the
+// request context for tool handlers.
 //
-// The returned *http.Server can be used for graceful shutdown.
-func StartHTTPServer(store *storage.Storage, embeddingClient *embedding.Client, addr string) *http.Server {
+// The returned handler is intended to be mounted on the main HTTP mux
+// at "/mcp".
+func NewHandler(store *storage.Storage, embeddingClient *embedding.Client) http.Handler {
 	mcpServer := NewServer(store, 0, embeddingClient)
 
 	streamServer := server.NewStreamableHTTPServer(mcpServer,
 		server.WithStateLess(true),
 	)
 
-	mux := http.NewServeMux()
-	mux.Handle("/mcp", apiKeyAuth(store, streamServer))
-
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	go func() {
-		slog.Info("Starting MCP HTTP server", slog.String("listen_address", addr))
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			slog.Error("MCP HTTP server failed", slog.Any("error", err))
-		}
-	}()
-
-	return srv
+	return apiKeyAuth(store, streamServer)
 }
 
 // apiKeyAuth validates the X-Auth-Token header against the Miniflux user

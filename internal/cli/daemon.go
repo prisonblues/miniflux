@@ -35,13 +35,9 @@ func startDaemon(store *storage.Storage) {
 		runScheduler(store, pool)
 	}
 
-	var httpServers []*http.Server
-	if config.Opts.HasHTTPService() {
-		httpServers = server.StartWebServer(store, pool)
-	}
-
+	// Create the embedding client early so it can be shared with the MCP
+	// handler and the background embedding worker.
 	var embeddingClient *embedding.Client
-	embeddingCtx, cancelEmbedding := context.WithCancel(context.Background())
 	if config.Opts.EmbeddingEnabled() {
 		embeddingClient = embedding.NewClient(
 			config.Opts.EmbeddingAPIURL(),
@@ -49,6 +45,21 @@ func startDaemon(store *storage.Storage) {
 			config.Opts.EmbeddingModel(),
 			config.Opts.EmbeddingDimensions(),
 		)
+	}
+
+	// Build the MCP handler (mounted on the main HTTP server at /mcp).
+	var mcpHandler http.Handler
+	if config.Opts.MCPEnabled() {
+		mcpHandler = mcpserver.NewHandler(store, embeddingClient)
+	}
+
+	var httpServers []*http.Server
+	if config.Opts.HasHTTPService() {
+		httpServers = server.StartWebServer(store, pool, mcpHandler)
+	}
+
+	embeddingCtx, cancelEmbedding := context.WithCancel(context.Background())
+	if embeddingClient != nil {
 		embeddingWorker := embedding.NewWorker(
 			embeddingClient,
 			store,
@@ -58,11 +69,6 @@ func startDaemon(store *storage.Storage) {
 			config.Opts.EmbeddingInterval(),
 		)
 		go embeddingWorker.Run(embeddingCtx)
-	}
-
-	var mcpHTTPServer *http.Server
-	if config.Opts.MCPEnabled() {
-		mcpHTTPServer = mcpserver.StartHTTPServer(store, embeddingClient, config.Opts.MCPHTTPAddr())
 	}
 
 	metricsCtx, cancelMetrics := context.WithCancel(context.Background())
@@ -107,13 +113,6 @@ func startDaemon(store *storage.Storage) {
 	cancelMetrics()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	if mcpHTTPServer != nil {
-		slog.Debug("Shutting down MCP HTTP server...")
-		if err := mcpHTTPServer.Shutdown(ctx); err != nil {
-			slog.Error("MCP HTTP server shutdown error", slog.Any("error", err))
-		}
-	}
 
 	if len(httpServers) > 0 {
 		slog.Debug("Shutting down HTTP servers...")

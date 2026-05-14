@@ -436,11 +436,6 @@ func NewConfigOptions() *configOptions {
 				rawValue:        "0",
 				valueType:       boolType,
 			},
-			"MCP_HTTP_ADDR": {
-				parsedStringValue: "127.0.0.1:8081",
-				rawValue:          "127.0.0.1:8081",
-				valueType:         stringType,
-			},
 			"MEDIA_PROXY_CUSTOM_URL": {
 				rawValue:  "",
 				valueType: urlType,
@@ -873,10 +868,6 @@ func (c *configOptions) MCPAPIKey() string {
 
 func (c *configOptions) MCPEnabled() bool {
 	return c.options["MCP_ENABLED"].parsedBoolValue
-}
-
-func (c *configOptions) MCPHTTPAddr() string {
-	return c.options["MCP_HTTP_ADDR"].parsedStringValue
 }
 
 func (c *configOptions) HasMetricsCollector() bool {

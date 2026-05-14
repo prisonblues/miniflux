@@ -2223,19 +2223,3 @@ func TestMCPEnabledOptionParsing(t *testing.T) {
 		t.Fatal("Expected MCP_ENABLED to be enabled")
 	}
 }
-
-func TestMCPHTTPAddrOptionParsing(t *testing.T) {
-	configParser := NewConfigParser()
-
-	if configParser.options.MCPHTTPAddr() != "127.0.0.1:8081" {
-		t.Fatalf("Expected default MCP_HTTP_ADDR to be '127.0.0.1:8081', got '%s'", configParser.options.MCPHTTPAddr())
-	}
-
-	if err := configParser.parseLines([]string{"MCP_HTTP_ADDR=0.0.0.0:9090"}); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if configParser.options.MCPHTTPAddr() != "0.0.0.0:9090" {
-		t.Fatalf("Expected MCP_HTTP_ADDR to be '0.0.0.0:9090', got '%s'", configParser.options.MCPHTTPAddr())
-	}
-}
