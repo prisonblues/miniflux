@@ -49,7 +49,7 @@ func startDaemon(store *storage.Storage) {
 
 	// Build the MCP handler (mounted on the main HTTP server at /mcp).
 	var mcpHandler http.Handler
-	if config.Opts.MCPEnabled() {
+	if config.Opts.MCPEnabled() && config.Opts.HasHTTPService() {
 		mcpHandler = mcpserver.NewHandler(store, embeddingClient)
 	}
 
