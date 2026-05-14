@@ -15,7 +15,7 @@ import (
 	"miniflux.app/v2/internal/worker"
 )
 
-func newRouter(store *storage.Storage, pool *worker.Pool) http.Handler {
+func newRouter(store *storage.Storage, pool *worker.Pool, mcpHandler http.Handler) http.Handler {
 	readinessProbe := newReadinessProbe(store)
 
 	// Application routes served under the base path.
@@ -35,6 +35,11 @@ func newRouter(store *storage.Storage, pool *worker.Pool) http.Handler {
 	// REST API routing.
 	if config.Opts.HasAPI() {
 		appMux.Handle("/v1/", api.NewHandler(store, pool))
+	}
+
+	// MCP routing.
+	if mcpHandler != nil {
+		appMux.Handle("/mcp", mcpHandler)
 	}
 
 	// Metrics endpoint.

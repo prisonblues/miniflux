@@ -21,7 +21,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-func StartWebServer(store *storage.Storage, pool *worker.Pool) []*http.Server {
+func StartWebServer(store *storage.Storage, pool *worker.Pool, mcpHandler http.Handler) []*http.Server {
 	var servers []*http.Server
 
 	autocertTLSConfig, challengeServer := setupAutocert(store)
@@ -46,7 +46,7 @@ func StartWebServer(store *storage.Storage, pool *worker.Pool) []*http.Server {
 			WriteTimeout:      config.Opts.HTTPServerTimeout(),
 			IdleTimeout:       config.Opts.HTTPServerTimeout(),
 			ReadHeaderTimeout: config.Opts.HTTPServerTimeout(),
-			Handler:           newRouter(store, pool),
+			Handler:           newRouter(store, pool, mcpHandler),
 		}
 
 		switch t.mode {
