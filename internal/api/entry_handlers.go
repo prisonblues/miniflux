@@ -564,7 +564,7 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 				config.Opts.EmbeddingModel(),
 				config.Opts.EmbeddingDimensions(),
 			)
-			ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 			defer cancel()
 
 			vec, err := client.EmbedSingle(ctx, semanticQuery)
