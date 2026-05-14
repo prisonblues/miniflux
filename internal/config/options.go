@@ -425,6 +425,12 @@ func NewConfigOptions() *configOptions {
 				valueType:         stringType,
 				secret:            true,
 			},
+			"MCP_API_KEY_FILE": {
+				parsedStringValue: "",
+				rawValue:          "",
+				valueType:         secretFileType,
+				targetKey:         "MCP_API_KEY",
+			},
 			"MEDIA_PROXY_CUSTOM_URL": {
 				rawValue:  "",
 				valueType: urlType,

@@ -43,6 +43,20 @@ func TestSnippetEmpty(t *testing.T) {
 	}
 }
 
+func TestSnippetUTF8(t *testing.T) {
+	// Build a string of multi-byte runes that exceeds snippetMaxLen runes.
+	long := strings.Repeat("\u00e9", snippetMaxLen+50) // é is 2 bytes in UTF-8
+	got := snippet(long)
+	// Must be valid UTF-8 and properly truncated.
+	runes := []rune(got)
+	if len(runes) > snippetMaxLen+3 { // +3 for "..."
+		t.Errorf("snippet too long: %d runes", len(runes))
+	}
+	if !strings.HasSuffix(got, "...") {
+		t.Errorf("expected '...' suffix, got %q", got[len(got)-10:])
+	}
+}
+
 func TestReadingMins(t *testing.T) {
 	tests := []struct {
 		minutes  int

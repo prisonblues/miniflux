@@ -18,6 +18,7 @@ const (
 	defaultLimit    = 20
 	maxLimit        = 100
 	maxTopicLimit   = 50
+	maxTopics       = 20
 	defaultHours    = 24
 	defaultTopicLim = 5
 )
@@ -42,7 +43,6 @@ func (h *handler) searchEntries(_ context.Context, req mcp.CallToolRequest) (*mc
 	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
 	builder.WithSearchQuery(query)
 	builder.WithLimit(limit)
-	builder.WithoutContent()
 	if status != "" {
 		builder.WithStatus(status)
 	}
@@ -87,7 +87,6 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
 	builder.WithSemanticSearch(vec)
 	builder.WithLimit(limit)
-	builder.WithoutContent()
 	if status != "" {
 		builder.WithStatus(status)
 	}
@@ -131,7 +130,6 @@ func (h *handler) similarEntries(_ context.Context, req mcp.CallToolRequest) (*m
 	builder.WithSemanticSearch(vec)
 	builder.WithoutEntryID(entryID)
 	builder.WithLimit(limit)
-	builder.WithoutContent()
 
 	entries, err := builder.GetEntries()
 	if err != nil {
@@ -158,7 +156,6 @@ func (h *handler) recentEntries(_ context.Context, req mcp.CallToolRequest) (*mc
 	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
 	builder.AfterPublishedDate(since)
 	builder.WithLimit(limit)
-	builder.WithoutContent()
 	builder.WithSorting("e.published_at", "DESC")
 	if status != "" {
 		builder.WithStatus(status)
@@ -203,7 +200,6 @@ func (h *handler) feedEntries(_ context.Context, req mcp.CallToolRequest) (*mcp.
 	builder := storage.NewEntryQueryBuilder(h.store, h.userID)
 	builder.WithFeedID(feedID)
 	builder.WithLimit(limit)
-	builder.WithoutContent()
 	builder.WithSorting("e.published_at", "DESC")
 	if query != "" {
 		builder.WithSearchQuery(query)
@@ -246,6 +242,9 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	if len(topics) == 0 {
 		return mcp.NewToolResultError("topics must contain at least one non-empty string"), nil
 	}
+	if len(topics) > maxTopics {
+		return mcp.NewToolResultError(fmt.Sprintf("too many topics: %d (max %d)", len(topics), maxTopics)), nil
+	}
 
 	hours := req.GetInt("hours", defaultHours)
 	if hours <= 0 {
@@ -267,7 +266,6 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 		builder := storage.NewEntryQueryBuilder(h.store, h.userID)
 		builder.AfterPublishedDate(since)
 		builder.WithLimit(limitPerTopic)
-		builder.WithoutContent()
 
 		if useSemantic && h.embeddingClient != nil {
 			embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)

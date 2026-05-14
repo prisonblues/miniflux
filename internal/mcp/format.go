@@ -100,21 +100,22 @@ func formatFeedSummary(f *model.Feed) feedSummary {
 	return s
 }
 
-// snippet strips HTML and truncates to snippetMaxLen characters.
+// snippet strips HTML and truncates to snippetMaxLen runes.
 func snippet(htmlContent string) string {
 	plain := embedding.StripHTML(htmlContent)
-	if len(plain) <= snippetMaxLen {
+	runes := []rune(plain)
+	if len(runes) <= snippetMaxLen {
 		return plain
 	}
 	// Truncate at a word boundary if possible.
 	cut := snippetMaxLen
-	for cut > 0 && plain[cut] != ' ' {
+	for cut > 0 && runes[cut] != ' ' {
 		cut--
 	}
 	if cut == 0 {
 		cut = snippetMaxLen
 	}
-	return plain[:cut] + "..."
+	return string(runes[:cut]) + "..."
 }
 
 // readingMins returns the reading time in minutes.

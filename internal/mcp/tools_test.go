@@ -5,6 +5,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	gomcp "github.com/mark3labs/mcp-go/mcp"
@@ -149,6 +150,26 @@ func TestTopicScanRequiresTopics(t *testing.T) {
 	}
 	if !result.IsError {
 		t.Error("expected error result when topics contains only empty strings")
+	}
+}
+
+func TestTopicScanRejectsExcessiveTopics(t *testing.T) {
+	h := &handler{
+		store:  nil,
+		userID: 1,
+	}
+
+	topics := make([]any, maxTopics+1)
+	for i := range topics {
+		topics[i] = fmt.Sprintf("topic-%d", i)
+	}
+
+	result, err := h.topicScan(context.Background(), newRequest(map[string]any{"topics": topics}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("expected error result when too many topics provided")
 	}
 }
 
