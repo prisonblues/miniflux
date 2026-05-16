@@ -75,7 +75,7 @@ func (h *handler) searchEntries(ctx context.Context, req mcp.CallToolRequest) (*
 	for i, e := range entries {
 		results[i] = formatEntrySummary(e)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(entriesResult{Entries: results})
 }
 
 func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -119,7 +119,7 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 	for i, e := range entries {
 		results[i] = formatEntrySummary(e)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(entriesResult{Entries: results})
 }
 
 func (h *handler) similarEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -156,7 +156,7 @@ func (h *handler) similarEntries(ctx context.Context, req mcp.CallToolRequest) (
 	for i, e := range entries {
 		results[i] = formatEntrySummary(e)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(entriesResult{Entries: results})
 }
 
 func (h *handler) recentEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -186,7 +186,7 @@ func (h *handler) recentEntries(ctx context.Context, req mcp.CallToolRequest) (*
 	for i, e := range entries {
 		results[i] = formatEntrySummary(e)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(entriesResult{Entries: results})
 }
 
 func (h *handler) listFeeds(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -201,7 +201,7 @@ func (h *handler) listFeeds(ctx context.Context, _ mcp.CallToolRequest) (*mcp.Ca
 	for i, f := range feeds {
 		results[i] = formatFeedSummary(f)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(feedsResult{Feeds: results})
 }
 
 func (h *handler) feedEntries(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -230,7 +230,21 @@ func (h *handler) feedEntries(ctx context.Context, req mcp.CallToolRequest) (*mc
 	for i, e := range entries {
 		results[i] = formatEntrySummary(e)
 	}
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(entriesResult{Entries: results})
+}
+
+// MCP structuredContent must be a JSON object, never an array.
+// These wrapper types ensure slice results are always nested in an object.
+type entriesResult struct {
+	Entries []entrySummary `json:"entries"`
+}
+
+type feedsResult struct {
+	Feeds []feedSummary `json:"feeds"`
+}
+
+type topicsResult struct {
+	Topics []topicResult `json:"topics"`
 }
 
 // topicResult groups search results by topic.
@@ -309,7 +323,7 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 		results = append(results, topicResult{Topic: topic, Entries: summaries})
 	}
 
-	return mcp.NewToolResultJSON(results)
+	return mcp.NewToolResultJSON(topicsResult{Topics: results})
 }
 
 func (h *handler) getEntry(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
