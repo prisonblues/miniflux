@@ -6,9 +6,11 @@ package mcp // import "miniflux.app/v2/internal/mcp"
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"miniflux.app/v2/internal/embedding"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -21,7 +23,47 @@ const (
 	maxTopics       = 20
 	defaultHours    = 24
 	defaultTopicLim = 5
+
+	// Query-embedding budget for the semantic MCP tools. The OpenRouter
+	// embedding endpoint occasionally cold-starts or queues past a single short
+	// timeout — most visibly during the fixed early-morning cron runs — so we
+	// allow a longer per-attempt window than the previous hard 10s and retry
+	// once. A slow first attempt is usually followed by a fast warm one.
+	embedQueryTimeout  = 15 * time.Second
+	embedQueryAttempts = 2
 )
+
+// embedQuery embeds a single query string for semantic search, retrying on
+// transient failure. Returns the vector, or the last error if every attempt
+// fails (or the caller's context is cancelled).
+func (h *handler) embedQuery(ctx context.Context, text string) (model.Vector, error) {
+	var lastErr error
+	for attempt := 0; attempt < embedQueryAttempts; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, embedQueryTimeout)
+		vec, err := h.embeddingClient.EmbedSingle(attemptCtx, text)
+		cancel()
+		if err == nil && len(vec) > 0 {
+			return vec, nil
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("embedding returned no vector")
+		}
+		// Stop early if the caller's context is done (parent deadline/cancel).
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if attempt < embedQueryAttempts-1 {
+			select {
+			case <-time.After(500 * time.Millisecond):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+	return nil, lastErr
+}
 
 type contextKey int
 
@@ -92,16 +134,18 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 	status := req.GetString("status", "")
 	categoryID := int64(req.GetInt("category_id", 0))
 
-	embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	vec, err := h.embeddingClient.EmbedSingle(embedCtx, query)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("embedding failed: %v", err)), nil
-	}
-
 	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
-	builder.WithSemanticSearch(vec)
+	if vec, err := h.embedQuery(ctx, query); err == nil {
+		builder.WithSemanticSearch(vec)
+	} else {
+		// Degrade to full-text search rather than failing the whole call when
+		// the embedding endpoint is briefly unavailable. Mirrors topic_scan and
+		// the REST semantic path, so callers get keyword-matched results instead
+		// of a hard error.
+		slog.Warn("semantic_search: embedding failed, falling back to full-text search",
+			slog.Any("error", err))
+		builder.WithSearchQuery(query)
+	}
 	builder.WithLimit(limit)
 	if status != "" {
 		builder.WithStatus(status)
@@ -298,13 +342,12 @@ func (h *handler) topicScan(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 		builder.WithLimit(limitPerTopic)
 
 		if useSemantic && h.embeddingClient != nil {
-			embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			vec, err := h.embeddingClient.EmbedSingle(embedCtx, topic)
-			cancel()
-			if err == nil && len(vec) > 0 {
+			if vec, err := h.embedQuery(ctx, topic); err == nil {
 				builder.WithSemanticSearch(vec)
 			} else {
 				// Fall back to FTS on embedding failure.
+				slog.Warn("topic_scan: embedding failed, falling back to full-text search",
+					slog.String("topic", topic), slog.Any("error", err))
 				builder.WithSearchQuery(topic)
 			}
 		} else {
