@@ -52,6 +52,7 @@ func semanticSearchTool() mcp.Tool {
 	return mcp.NewTool("semantic_search",
 		mcp.WithDescription("Vector similarity search using embeddings (requires EMBEDDING_ENABLED=true)"),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
+		mcp.WithString("lookback", mcp.Description("Only articles published within this window: positive whole number plus h/hours, d/days, w/weeks, or mo/months (e.g. 24h, 7d, 2w, 3mo). Months are calendar months in UTC, clamped to the last valid day. Omit for all time.")),
 		mcp.WithNumber("limit", mcp.Description("Max results (default 20, max 100)")),
 		mcp.WithString("status", mcp.Description("Filter by status"), mcp.Enum("unread", "read")),
 		mcp.WithNumber("category_id", mcp.Description("Filter by category ID")),

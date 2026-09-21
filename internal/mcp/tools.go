@@ -129,12 +129,19 @@ func (h *handler) semanticSearch(ctx context.Context, req mcp.CallToolRequest) (
 	if err != nil {
 		return mcp.NewToolResultError("query is required"), nil
 	}
+	since, err := lookbackCutoff(req, time.Now())
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
 
 	limit := clampLimit(req.GetInt("limit", defaultLimit))
 	status := req.GetString("status", "")
 	categoryID := int64(req.GetInt("category_id", 0))
 
 	builder := storage.NewEntryQueryBuilder(h.store, h.getUserID(ctx))
+	if !since.IsZero() {
+		builder.AfterPublishedDate(since)
+	}
 	if vec, err := h.embedQuery(ctx, query); err == nil {
 		builder.WithSemanticSearch(vec)
 	} else {
