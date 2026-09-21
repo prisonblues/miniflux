@@ -76,7 +76,7 @@ func (s *Storage) GetEntryEmbedding(userID, entryID int64) (model.Vector, error)
 // dimension constraint and that the HNSW index exists. It is idempotent —
 // a no-op when the column already matches the requested dimensions.
 func (s *Storage) ConfigureEmbeddingColumn(dimensions int) error {
-	// pgvector stores dimension + 4 in atttypmod; -1 means untyped vector.
+	// pgvector stores the dimension directly in atttypmod; -1 means untyped vector.
 	var typmod int
 	err := s.db.QueryRow(`
 		SELECT atttypmod
@@ -90,7 +90,7 @@ func (s *Storage) ConfigureEmbeddingColumn(dimensions int) error {
 
 	currentDim := 0
 	if typmod != -1 {
-		currentDim = typmod - 4
+		currentDim = typmod
 	}
 
 	if currentDim == dimensions {
